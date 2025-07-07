@@ -40,7 +40,7 @@ function App() {
   const [selectedPretzelStyle, setSelectedPretzelStyle] = useState(pretzelStyles[0])
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [quality, setQuality] = useState<'standard' | 'hd'>('hd')
+  const [quality, setQuality] = useState<'low' | 'medium' | 'high' | 'auto'>('high')
 
   const generateImage = async () => {
     setIsGenerating(true)
@@ -49,16 +49,32 @@ function App() {
     try {
       const prompt = `A beautiful artistic ${selectedPretzelStyle} made entirely from ${selectedScrewType}, arranged in perfect pretzel shape. The screws should be metallic and realistic, forming the twisted pretzel pattern. High quality, professional photography style, studio lighting, clean composition, on a solid ${selectedColor.name.toLowerCase()} background color ${selectedColor.hex}. The screws should be the main focus, clearly visible and well-defined, creating an artistic sculpture.`
       
-      const { data } = await blink.ai.generateImage({
-        prompt,
-        size: '1024x1024',
-        quality,
-        n: 1
-      })
+      const attemptGenerate = async (imgQuality: 'low' | 'medium' | 'high' | 'auto') => {
+        const { data } = await blink.ai.generateImage({
+          prompt,
+          size: '1024x1024',
+          quality: imgQuality,
+          n: 1
+        })
+        return data && data[0]?.url ? data[0].url : null
+      }
       
-      if (data && data[0]?.url) {
-        setGeneratedImage(data[0].url)
+      let url: string | null = null
+      try {
+        url = await attemptGenerate(quality)
+      } catch (err) {
+        console.warn('Primary quality failed, attempting fallback...', err)
+      }
+
+      if (!url && quality === 'high') {
+        url = await attemptGenerate('medium')
+      }
+
+      if (url) {
+        setGeneratedImage(url)
         toast.success('Pretzel art generated successfully!', { id: 'generating' })
+      } else {
+        throw new Error('No image URL returned')
       }
     } catch (error) {
       console.error('Error generating image:', error)
@@ -186,16 +202,16 @@ function App() {
                   <h3 className="text-lg font-semibold mb-3">Image Quality</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <Button
-                      variant={quality === 'standard' ? "default" : "outline"}
-                      onClick={() => setQuality('standard')}
+                      variant={quality === 'medium' ? "default" : "outline"}
+                      onClick={() => setQuality('medium')}
                     >
-                      Standard
+                      Medium
                     </Button>
                     <Button
-                      variant={quality === 'hd' ? "default" : "outline"}
-                      onClick={() => setQuality('hd')}
+                      variant={quality === 'high' ? "default" : "outline"}
+                      onClick={() => setQuality('high')}
                     >
-                      HD Quality
+                      High
                     </Button>
                   </div>
                 </div>
